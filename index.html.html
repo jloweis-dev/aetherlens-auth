@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherLens — eBay Authentication</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #141414;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 48px 40px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 13px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 32px;
+    }
+
+    .logo span {
+      color: #00FF41;
+    }
+
+    .status-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      line-height: 1;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #777;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    /* Waiting state */
+    #state-waiting { display: none; }
+
+    /* Success state */
+    #state-success { display: none; }
+
+    /* Error state */
+    #state-error { display: none; }
+
+    .step-list {
+      text-align: left;
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 14px;
+      color: #aaa;
+      padding: 6px 0;
+    }
+
+    .step-num {
+      background: #1e1e1e;
+      color: #00FF41;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step.done .step-num {
+      background: #003a10;
+    }
+
+    .step.done { color: #666; }
+
+    .step.active { color: #e0e0e0; }
+
+    .step.active .step-num {
+      background: #00FF41;
+      color: #000;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(0, 255, 65, 0); }
+    }
+
+    .copied-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #003a10;
+      border: 1px solid #00FF41;
+      color: #00FF41;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .return-text {
+      font-size: 14px;
+      color: #777;
+      margin-bottom: 8px;
+    }
+
+    .countdown {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .error-box {
+      background: #1a0000;
+      border: 1px solid #5c0000;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: #ff6b6b;
+      margin-bottom: 20px;
+      text-align: left;
+      word-break: break-all;
+    }
+
+    .retry-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #aaa;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .retry-btn:hover {
+      border-color: #555;
+      color: #e0e0e0;
+    }
+
+    .footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">Aether<span>Lens</span> Engine</div>
+
+  <!-- Waiting state (shown briefly on load) -->
+  <div id="state-waiting">
+    <div class="status-icon">⏳</div>
+    <h1>Processing...</h1>
+    <p class="subtitle">Reading authorisation response from eBay.</p>
+  </div>
+
+  <!-- Success state -->
+  <div id="state-success">
+    <div class="status-icon">✅</div>
+    <h1>eBay Connected</h1>
+    <p class="subtitle">
+      Your eBay account has been authorised successfully.<br>
+      AetherLens is completing the connection automatically.
+    </p>
+
+    <div class="step-list">
+      <div class="step done" id="step-1">
+        <div class="step-num">✓</div>
+        <span>Logged into eBay and granted permission</span>
+      </div>
+      <div class="step done" id="step-2">
+        <div class="step-num">✓</div>
+        <span>Authorisation code received</span>
+      </div>
+      <div class="step active" id="step-3">
+        <div class="step-num">3</div>
+        <span>AetherLens is completing the connection…</span>
+      </div>
+    </div>
+
+    <div class="copied-badge">
+      <span>✓</span>
+      <span>Code copied to clipboard</span>
+    </div>
+
+    <p class="return-text">You can close this tab and return to AetherLens.</p>
+    <p class="countdown" id="countdown"></p>
+  </div>
+
+  <!-- Error state -->
+  <div id="state-error">
+    <div class="status-icon">❌</div>
+    <h1>Authorisation Failed</h1>
+    <p class="subtitle">eBay returned an error during the authorisation process.</p>
+    <div class="error-box" id="error-detail"></div>
+    <button class="retry-btn" onclick="window.close()">Close this tab</button>
+  </div>
+
+  <div class="footer">AetherLens Engine &mdash; eBay AU Arbitrage Platform</div>
+</div>
+
+<script>
+  function show(id) {
+    ['state-waiting', 'state-success', 'state-error'].forEach(s => {
+      document.getElementById(s).style.display = s === id ? 'block' : 'none';
+    });
+  }
+
+  function getParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // Fallback for browsers that block clipboard API
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        return true;
+      } catch (e2) {
+        return false;
+      }
+    }
+  }
+
+  function startCountdown(seconds) {
+    const el = document.getElementById('countdown');
+    let remaining = seconds;
+    el.textContent = `This tab will close in ${remaining}s`;
+    const interval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(interval);
+        el.textContent = 'You can close this tab.';
+        window.close();
+      } else {
+        el.textContent = `This tab will close in ${remaining}s`;
+      }
+    }, 1000);
+  }
+
+  async function init() {
+    show('state-waiting');
+
+    const code = getParam('code');
+    const error = getParam('error');
+    const errorDesc = getParam('error_description');
+
+    if (error) {
+      document.getElementById('error-detail').textContent =
+        `${error}: ${errorDesc || 'No further details provided by eBay.'}`;
+      show('state-error');
+      return;
+    }
+
+    if (!code) {
+      document.getElementById('error-detail').textContent =
+        'No authorisation code was found in the URL. Please try connecting again from AetherLens.';
+      show('state-error');
+      return;
+    }
+
+    // Copy the code to clipboard so AetherLens can poll and pick it up
+    await copyToClipboard(code);
+
+    show('state-success');
+    startCountdown(15);
+  }
+
+  init();
+</script>
+
+</body>
+</html>
